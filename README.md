@@ -24,7 +24,10 @@
 |---|---|
 | [`PX4-SITL-setup-log.md`](./PX4-SITL-setup-log.md) | **环境搭建** —— 13 个坑，从零到 SITL 仿真起飞 |
 | [`PX4-devlog-01-first-module.md`](./PX4-devlog-01-first-module.md) | **二次开发 01** —— 第一个自定义模块、观测能力、控制链路频率地图 |
-| [`plot_attitude.py`](./plot_attitude.py) | 从 `.ulg` 日志画姿态/角速率曲线的工具脚本 |
+| [`PX4-devlog-02-uorb-and-log-analysis.md`](./PX4-devlog-02-uorb-and-log-analysis.md) | **二次开发 02** —— uORB 采样实验、工具链踩坑、一次完整的日志排故 |
+| [`plot_attitude.py`](./plot_attitude.py) | 姿态与角速率曲线 |
+| [`plot_mission.py`](./plot_mission.py) | 任务飞行分析（轨迹/高度/速度/姿态/推力） |
+| [`analyze_rate.py`](./analyze_rate.py) | 话题发布周期分布分析 |
 
 分成两条线：
 
@@ -33,7 +36,7 @@
 
 ---
 
-## 四条最有价值的内容
+## 五条最有价值的内容
 
 ### 1. Gazebo topic 三层诊断法（setup-log）
 
@@ -80,6 +83,26 @@ PX4 SITL 的 ulog 里有 `vehicle_local_position_groundtruth`、`vehicle_attitud
 
 > 反面教材：用 `np.diff(yaw)/dt` 从四元数**差分**估算角速率，在跳变点算出了 >20000 deg/s 的假尖峰。
 > **永远不要用姿态差分反推角速率** —— 飞控里本来就有真实测得的角速率。
+
+### 5. 看到"陡变"，先算三个数（devlog-02）
+
+```
+① 这个变化用了多长时间？      ← 从数据算，不是从图看
+② 这个变化率物理上可能吗？    ← 对比物理上限，如 a ≤ g·tan(θ_max)
+③ 图的时间尺度是多少？        ← 1 秒在图上占几个像素？
+```
+
+**一次任务飞行日志里，水平速度看起来在 0 和 5 m/s 之间"垂直跳变"。**
+
+排查过程：
+
+1. **记录层有问题吗？** → 时间戳间隔 99.99% 是 8000 us → 排除
+2. **速度估计有问题吗？** → 最大加速度 4.1 m/s²（物理上限约 3.2 m/s²，同量级）→ 排除
+3. **放大 20 秒窗口** → **平滑的 S 形加速曲线**
+
+**真因：1.2 秒的加速过程，在 732 秒的图上不到 1 个像素。**
+
+> **数据从来没错，是看图的人错了。** 任何长时间跨度的图都会骗你 —— **立成纪律，不靠记性**。
 
 ---
 
